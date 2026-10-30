@@ -9,6 +9,8 @@ A multi-page retail operations dashboard: **React** front end, **Express** back 
 | Database | Postgres (Neon in production, embedded PGlite on your laptop) | `server/schema.js`, `server/seed.js` |
 | Deployment | Vercel (static site + one serverless function) | `vercel.json`, `api/index.js` |
 
+**Live demo:** https://meridian-vert-seven.vercel.app
+
 Demo logins: **admin@meridian.dev / admin123** (full access) · **viewer@meridian.dev / viewer123** (read only)
 
 ---
@@ -46,7 +48,9 @@ Other commands: `npm test` (31 tests) · `npm run build` (production build into 
    - `JWT_SECRET` = any long random text (e.g. 40 random characters)
 4. Deploy. Then open `https://YOUR-APP.vercel.app/api/health` — you should see `{"ok":true,"database":"postgres"}`. Open the site root and sign in with the demo logins.
 
-Tables and demo data are created automatically on the first request. 
+Tables and demo data are created automatically on the first request, so the very first page load can take 5 to 15 seconds.
+
+> Variable names must be exactly `DATABASE_URL` and `JWT_SECRET`. Variables only apply to **new** deployments, so after adding or changing one, go to Deployments → ⋯ → **Redeploy**.
 
 ## 3. How the pieces connect
 
@@ -86,6 +90,7 @@ Browser ── /api/* ──► Express app (server/app.js) ──► Postgres
 
 ## 6. Troubleshooting
 
+- **The site loads but sign-in or `/api/auth/me` returns 500** — the API cannot start. Check both variable names for typos, confirm the Neon string starts with `postgresql://` and ends with `?sslmode=require`, then Redeploy. The exact error is under Vercel → Logs.
 - **`/api/health` on Vercel says 500** — `DATABASE_URL` or `JWT_SECRET` is missing in Project → Settings → Environment Variables. Add it, then Redeploy.
 - **Port already in use** — stop the old `npm run dev` (Ctrl+C) or set `PORT=4001`.
 - **Login works on localhost but not over plain http elsewhere** — set `COOKIE_SECURE=0` (production mode only sends the cookie over https).
