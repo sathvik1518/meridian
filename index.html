@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Meridian is a retail operations console: live inventory, orders, restock planning and team access, built with React." />
+    <meta name="theme-color" content="#10231c" />
+    <title>Meridian — Retail Operations Console</title>
+    <!-- Set the theme before the first paint so dark mode never flashes white. -->
+    <script>
+      try {
+        var t = localStorage.getItem("meridian:theme");
+        var dark = t ? t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.classList.toggle("dark", dark);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

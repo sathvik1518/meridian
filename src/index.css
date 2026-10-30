@@ -1,0 +1,275 @@
+@import "tailwindcss";
+
+/* Dark mode is a class on <html> (set by ThemeContext), not the OS setting alone. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- Design tokens: one set per theme ---------- */
+:root {
+  color-scheme: light;
+  --bg: #f3f0e8;
+  --surface: #fdfcf8;
+  --surface-2: #f6f3ea;
+  --ink: #15221d;
+  --ink-2: #4a5852;
+  --ink-3: #5a665f;
+  --line: #e2ddd0;
+  --line-strong: #cfc8b7;
+
+  --accent: #c94a12;
+  --accent-hover: #b03f0b;
+  --accent-soft: #fbe6da;
+  --accent-ink: #8a3008;
+  --on-accent: #ffffff;
+
+  --ok: #1c7355;
+  --ok-soft: #dcefe5;
+  --ok-ink: #0f4d38;
+  --warn: #b7791f;
+  --warn-soft: #faefd0;
+  --warn-ink: #7a4f0c;
+  --bad: #c0352b;
+  --bad-soft: #fadfdc;
+  --bad-ink: #8c2019;
+  --on-bad: #ffffff;
+  --info: #2a5fa8;
+  --info-soft: #dde9f7;
+  --info-ink: #1b4278;
+
+  --side: #10231c;
+  --side-ink: #e1eae4;
+  --side-muted: #94ab9f;
+  --side-line: #1f3a2f;
+  --side-active: #1b3a2d;
+
+  --c1: #1c7355;
+  --c2: #c94a12;
+  --c3: #2a5fa8;
+  --c4: #b7791f;
+  --c5: #8a4aa8;
+  --c6: #5e6d68;
+
+  --shadow-card: 0 1px 0 rgb(20 34 29 / 0.03), 0 1px 3px rgb(20 34 29 / 0.07);
+  --shadow-pop: 0 18px 50px -12px rgb(20 34 29 / 0.35), 0 2px 8px rgb(20 34 29 / 0.12);
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0c1310;
+  --surface: #131c18;
+  --surface-2: #19241f;
+  --ink: #e8eee9;
+  --ink-2: #a6b5ad;
+  --ink-3: #8b9b93;
+  --line: #25332d;
+  --line-strong: #33443c;
+
+  --accent: #ff7a3d;
+  --accent-hover: #ff8f59;
+  --accent-soft: #3a1e10;
+  --accent-ink: #ffb391;
+  --on-accent: #1b0b03;
+
+  --ok: #4fd1a1;
+  --ok-soft: #12352a;
+  --ok-ink: #8fe8c4;
+  --warn: #f2b84b;
+  --warn-soft: #3a2c0e;
+  --warn-ink: #f7d28a;
+  --bad: #ff7468;
+  --bad-soft: #3e1714;
+  --bad-ink: #ffa59c;
+  --on-bad: #2a0a07;
+  --info: #6fa8f0;
+  --info-soft: #14263f;
+  --info-ink: #a9ccf7;
+
+  --side: #09100d;
+  --side-ink: #e1eae4;
+  --side-muted: #86a093;
+  --side-line: #1a2a23;
+  --side-active: #15261e;
+
+  --c1: #4fd1a1;
+  --c2: #ff7a3d;
+  --c3: #6fa8f0;
+  --c4: #f2b84b;
+  --c5: #c590e3;
+  --c6: #9aaba3;
+
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02);
+  --shadow-pop: 0 18px 50px -12px rgb(0 0 0 / 0.7), 0 2px 8px rgb(0 0 0 / 0.4);
+}
+
+/* Tell Tailwind about the tokens so classes like bg-surface or text-ink-2 exist. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-ink: var(--ok-ink);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-ink: var(--warn-ink);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-bad-ink: var(--bad-ink);
+  --color-on-bad: var(--on-bad);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-ink: var(--info-ink);
+  --color-side: var(--side);
+  --color-side-ink: var(--side-ink);
+  --color-side-muted: var(--side-muted);
+  --color-side-line: var(--side-line);
+  --color-side-active: var(--side-active);
+}
+
+@theme {
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* ---------- Base (low priority, so Tailwind classes can override it) ---------- */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+}
+
+/* ---------- Motion keyframes ---------- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-in-right {
+  from { transform: translateX(32px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-32px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes shimmer {
+  to { background-position-x: -200%; }
+}
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes grow-y {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* ---------- Small reusable classes ---------- */
+@layer components {
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  /* Subtle paper grain + grid for the dark brand panel. */
+  .grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+  }
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .animate-rise { animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .animate-fade-in { animation: fade-in 0.2s ease both; }
+  .animate-pop-in { animation: pop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .animate-slide-in-right { animation: slide-in-right 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .animate-slide-in-left { animation: slide-in-left 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .animate-shake { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+  .animate-float { animation: float 6s ease-in-out infinite; }
+  .animate-spin-slow { animation: spin 0.8s linear infinite; }
+  .origin-left-grow { transform-origin: left; animation: grow-x 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .origin-bottom-grow { transform-origin: bottom; animation: grow-y 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .skeleton {
+    background: linear-gradient(100deg, var(--surface-2) 30%, var(--line) 50%, var(--surface-2) 70%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+    border-radius: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
