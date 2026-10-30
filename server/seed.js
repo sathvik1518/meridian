@@ -174,16 +174,28 @@ const pick = (rand, list) => list[Math.floor(rand() * list.length)];
 
 const money = (n) => Math.round(n * 100) / 100;
 
+// Insert many rows with ONE query (INSERT ... VALUES (...),(...),...). Seeding hundreds of rows one by one
+// is slow on a hosted database, because every query is a network round trip.
+async function insertMany(q, table, columns, rows, returning = "id") {
+  if (!rows.length) return [];
+  const params = [];
+  const tuples = rows.map((row) => `(${row.map((v) => `$${params.push(v)}`).join(",")})`);
+  return q.query(`INSERT INTO ${table} (${columns.join(", ")}) VALUES ${tuples.join(",")} RETURNING ${returning}`, params);
+}
+
 export async function initDb(db) {
+  // One transaction + an advisory lock: if several serverless instances start at once, they take turns
+  // instead of creating the tables (or the seed data) twice.
   await db.tx(async (q) => {
+    await q.query("SELECT pg_advisory_xact_lock(7342)");
     for (const statement of SCHEMA.split(";")
       .map((s) => s.trim())
       .filter(Boolean))
       await q.query(statement);
+    const [{ n }] = await q.query("SELECT COUNT(*)::int AS n FROM users");
+    // SEED_DEMO=off starts with an EMPTY workspace (just the two logins + categories).
+    if (n === 0) await seed(q, process.env.SEED_DEMO !== "off");
   });
-  const [{ n }] = await db.query("SELECT COUNT(*)::int AS n FROM users");
-  // SEED_DEMO=off starts with an EMPTY workspace (just the two logins + categories).
-  if (n === 0) await db.tx((q) => seed(q, process.env.SEED_DEMO !== "off"));
 }
 
 async function seed(q, demo) {
@@ -208,8 +220,9 @@ async function seed(q, demo) {
 
 // Sample products, customers, orders and activity (the "demo data").
 async function seedCatalog(q, rand, userIds, ago, DAY) {
+  // Products: build every row in memory first, then insert them all with one query.
   const titles = new Set();
-  const productIds = [];
+  const productRows = [];
   let counter = 0;
   for (const [ci, c] of CATEGORIES.entries()) {
     for (let i = 0; i < 12; i++) {
@@ -228,41 +241,43 @@ async function seedCatalog(q, rand, userIds, ago, DAY) {
       const stock = roll < 0.07 ? 0 : roll < 0.3 ? 1 + Math.floor(rand() * 15) : 16 + Math.floor(rand() * (depth - 15));
       const discount = rand() < 0.4 ? 0 : 3 + Math.floor(rand() * 23);
       const rating = Math.min(4.9, Math.round((3.1 + rand() * 1.8) * 10) / 10);
-      const [row] = await q.query(
-        `INSERT INTO products (sku, title, brand, category, description, price, discount_percentage, stock, rating, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10) RETURNING id`,
-        [
-          `MRD-${c.slug.slice(0, 3).toUpperCase()}-${1000 + counter++}`,
-          title,
-          brand,
-          c.slug,
-          `${noun} from ${brand}. ${pick(rand, c.blurbs)}`,
-          price,
-          discount,
-          stock,
-          rating,
-          ago(Math.floor(rand() * 300) * DAY),
-        ],
-      );
-      productIds.push(row.id);
+      const created = ago(Math.floor(rand() * 300) * DAY);
+      productRows.push([
+        `MRD-${c.slug.slice(0, 3).toUpperCase()}-${1000 + counter++}`,
+        title,
+        brand,
+        c.slug,
+        `${noun} from ${brand}. ${pick(rand, c.blurbs)}`,
+        price,
+        discount,
+        stock,
+        rating,
+        created,
+        created,
+      ]);
     }
   }
+  const products = await insertMany(
+    q,
+    "products",
+    ["sku", "title", "brand", "category", "description", "price", "discount_percentage", "stock", "rating", "created_at", "updated_at"],
+    productRows,
+    "id, title, price::float8 AS price, discount_percentage::float8 AS discount",
+  );
+  const productIds = products.map((p) => p.id);
+
   // Customers
-  const customerIds = [];
+  const customerRows = [];
   for (let i = 0; i < 40; i++) {
     const first = FIRST[i % FIRST.length];
     const last = LAST[(i * 7 + 3) % LAST.length];
-    const [row] = await q.query("INSERT INTO customers (name, email, city) VALUES ($1,$2,$3) RETURNING id", [
-      `${first} ${last}`,
-      `${first}.${last}${i}@example.com`.toLowerCase(),
-      pick(rand, CITIES),
-    ]);
-    customerIds.push(row.id);
+    customerRows.push([`${first} ${last}`, `${first}.${last}${i}@example.com`.toLowerCase(), pick(rand, CITIES)]);
   }
-  // Orders from the last 120 days (more recent days are busier), with line items
-  const products = await q.query(
-    "SELECT id, title, price::float8 AS price, discount_percentage::float8 AS discount FROM products ORDER BY id",
-  );
+  const customerIds = (await insertMany(q, "customers", ["name", "email", "city"], customerRows)).map((c) => c.id);
+
+  // Orders from the last 120 days (more recent days are busier), each with 1-4 line items
+  const orderRows = [];
+  const lineSpecs = []; // lineSpecs[i] = the lines of orderRows[i]
   for (let i = 0; i < 180; i++) {
     const ageDays = 120 * rand() ** 1.5;
     const status =
@@ -275,35 +290,42 @@ async function seedCatalog(q, rand, userIds, ago, DAY) {
             ? "delivered"
             : "shipped"
           : pick(rand, ["pending", "processing", "processing", "shipped"]);
-    const [order] = await q.query("INSERT INTO orders (customer_id, status, created_at) VALUES ($1,$2,$3) RETURNING id", [
-      pick(rand, customerIds),
-      status,
-      ago(ageDays * DAY),
-    ]);
-    const lines = 1 + Math.floor(rand() * 4);
-    for (let l = 0; l < lines; l++) {
+    orderRows.push([pick(rand, customerIds), status, ago(ageDays * DAY)]);
+    const lines = [];
+    for (let l = 0, n = 1 + Math.floor(rand() * 4); l < n; l++) {
       const p = pick(rand, products);
       const maxQty = p.price < 60 ? 5 : p.price < 400 ? 3 : 2;
-      await q.query(
-        "INSERT INTO order_items (order_id, product_id, title, price, discount_percentage, quantity) VALUES ($1,$2,$3,$4,$5,$6)",
-        [order.id, p.id, p.title, p.price, p.discount, 1 + Math.floor(rand() * maxQty)],
-      );
+      lines.push([p.id, p.title, p.price, p.discount, 1 + Math.floor(rand() * maxQty)]);
     }
+    lineSpecs.push(lines);
   }
+  const orders = await insertMany(q, "orders", ["customer_id", "status", "created_at"], orderRows);
+  const itemRows = orders.flatMap((o, i) => lineSpecs[i].map(([pid, title, price, disc, qty]) => [o.id, pid, title, price, disc, qty]));
+  await insertMany(q, "order_items", ["order_id", "product_id", "title", "price", "discount_percentage", "quantity"], itemRows);
+
   // A little history for the dashboard's activity feed
+  const names = (await q.query("SELECT id, name FROM users WHERE id = ANY($1) ORDER BY id", [userIds])).map((u) => u.name);
   const history = [
     [0, "restocked", "product", String(productIds[3]), "Added 60 units"],
     [1, "updated", "product", String(productIds[17]), "Changed price"],
     [0, "created", "product", String(productIds[41]), "New listing"],
     [1, "restocked", "product", String(productIds[26]), "Added 120 units"],
-    [0, "updated", "order", "12", "Marked as shipped"],
+    [0, "updated", "order", String(orders[11].id), "Marked as shipped"],
   ];
-  for (const [h, [who, action, entity, entityId, detail]] of history.entries()) {
-    await q.query(
-      "INSERT INTO audit_log (user_id, user_name, action, entity, entity_id, detail, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-      [userIds[who], STAFF[who].name, action, entity, entityId, detail, ago((h + 1) * 3.5 * 3_600_000 * 6)],
-    );
-  }
+  await insertMany(
+    q,
+    "audit_log",
+    ["user_id", "user_name", "action", "entity", "entity_id", "detail", "created_at"],
+    history.map(([who, action, entity, entityId, detail], h) => [
+      userIds[who],
+      names[who],
+      action,
+      entity,
+      entityId,
+      detail,
+      ago((h + 1) * 3.5 * 3_600_000 * 6),
+    ]),
+  );
 }
 
 // ---- Admin tools: start empty / bring the samples back ----
